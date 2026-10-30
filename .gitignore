@@ -1,0 +1,6 @@
+third_party/
+.venv/
+target/
+snforge_all.log
+tools/pqverify/pqverify
+__pycache__/
