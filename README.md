@@ -17,7 +17,7 @@ Falcon-512 verification on Starknet with a **Poseidon hash-to-point** (~5.18M L2
 |---|---|---|
 | Challenge record (SHAKE256) | 24,097,870 | record's bench |
 | Dual entry, mode 0 (SHAKE256, record code) | 23,585,028 (23.18M–24.78M) | 8 |
-| Dual entry, mode 1 (Poseidon, tagged v1) | **5,181,118** (5.178M–5.185M) | 8 |
+| Dual entry, mode 1 (Poseidon, tagged v1) | **5,181,117** (5.178M–5.185M) | 8 |
 
 Poseidon mode: **−78.5%** vs the record. Poseidon hash-to-point alone ≈1.4M; implied SHAKE256 share of the record ≈20.3M (total minus measured core ≈3.73M). The OpenZeppelin repo's own (untagged) Poseidon verifier measured 10.10–10.20M on comparable signatures; the saving over it comes from the record's optimised NTT/hint core.
 
