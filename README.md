@@ -1,6 +1,6 @@
 # falcon-starknet-poseidon
 
-Falcon-512 verification on Starknet with a **Poseidon hash-to-point** (~5.18M L2 gas), and **dual signing**: one standard Falcon-512 key signs each message both with standard SHAKE256 (verifiable by PQClean / falcon.py) and with Poseidon (cheap on Starknet).
+Falcon-512 verification on Starknet with a **Poseidon hash-to-point** (~5.01M L2 gas), and **dual signing**: one standard Falcon-512 key signs each message both with standard SHAKE256 (verifiable by PQClean / falcon.py) and with Poseidon (cheap on Starknet).
 
 *BEARTEC / Falcon PL — falcon-fpl.com. Research prototype.*
 
@@ -17,9 +17,9 @@ Falcon-512 verification on Starknet with a **Poseidon hash-to-point** (~5.18M L2
 |---|---|---|
 | Challenge record (SHAKE256) | 24,097,870 | record's bench |
 | Dual entry, mode 0 (SHAKE256, record code) | 23,585,028 (23.18M–24.78M) | 8 |
-| Dual entry, mode 1 (Poseidon, tagged v1) | **5,181,117** (5.178M–5.185M) | 8 |
+| Dual entry, mode 1 (Poseidon, tagged v1) | **5,013,399** (5.012M–5.014M) | 8 |
 
-Poseidon mode: **−78.5%** vs the record. Poseidon hash-to-point alone ≈1.4M; implied SHAKE256 share of the record ≈20.3M (total minus measured core ≈3.73M). The OpenZeppelin repo's own (untagged) Poseidon verifier measured 10.10–10.20M on comparable signatures; the saving over it comes from the record's optimised NTT/hint core.
+Poseidon mode: **−79.2%** vs the record (note the SHAKE rows use different signatures, so compare like-for-like with care). Poseidon hash-to-point alone ≈1.23M; the shared core (unpack, NTT, hint, norm) ≈3.76M by subtraction, which implies SHAKE256 is ≈20.3M (~84%) of the record. See `TUNING.md` for what was tried. The OpenZeppelin repo's own (untagged) Poseidon verifier measured 10.10–10.20M on comparable signatures; the saving over it comes from the record's optimised NTT/hint core.
 
 Run `./reproduce.sh` to regenerate everything (installs pinned toolchain, builds PQClean verifier, checks all vectors, runs all tests, prints the gas table).
 
@@ -28,10 +28,10 @@ Run `./reproduce.sh` to regenerate everything (installs pinned toolchain, builds
 t = hades(salt_a, salt_b, TAG)          # TAG = short string 'FALCON512-POSEIDON-H2P-v1'
 s = hades(t0 + message_hash, t1, t2)
 repeat: for felt in (s0, s1): 15 low 16-bit words w; accept w < 61445 (=5q), coeff = w mod q
-        s = hades(s)  until 512 coefficients
+        s = hades(s)  until >= 512 accepted; the first 512 are the point
 ```
 - salts are 2 × 20 bytes (< 2^160 each, enforced), i.e. the standard 40-byte Falcon salt.
-- 61445 = 5q, so accepted words are exactly uniform mod q = 12289; the low 240 bits of a field element are uniform up to ~2^-11 statistical distance per felt.
+- 61445 = 5q, so accepted words are exactly uniform mod q = 12289; the low 240 bits of a uniform field element are within ~2^-55 statistical distance of uniform (p mod 2^240 = 17·2^192+1).
 - Cairo: `crates/falcon_512/src/hashing/hash_to_point.cairo` (`hash_to_point_poseidon_raw`), Python: `tools/dualsign/dualsign.py` (`h2p_poseidon_v1`).
 - Verifiers: `Falcon512ShakeVerifier` (record), `Falcon512PoseidonRecVerifier`, and `falcon512_dual_verify(mode, msg, pk, sig)` (0 = SHAKE, 1 = Poseidon, other = reject) in `crates/falcon_512/src/lib.cairo`.
 
@@ -50,7 +50,7 @@ repeat: for felt in (s0, s1): 15 low 16-bit words w; accept w < 61445 (=5q), coe
 ZKNox **ETHFALCON** replaces SHAKE with a Keccak-based PRNG for EVM gas. This is the Starknet analogue with Poseidon, plus dual signing so one standard key remains interoperable.
 
 ## Use cases
-Post-quantum Starknet account-abstraction wallets (Falcon in `__validate__` at ~5.2M gas); Falcon PL committee signatures relayed to Starknet (standard SHAKE signature for everyone else, Poseidon signature for cheap on-chain checks).
+Post-quantum Starknet account-abstraction wallets (Falcon in `__validate__` at ~5.0M gas; not yet measured as a full account transaction); Falcon PL committee signatures relayed to Starknet (standard SHAKE signature for everyone else, Poseidon signature for cheap on-chain checks).
 
 ## Licence
 MIT (see `LICENSE`); attribution in `NOTICE.md`.

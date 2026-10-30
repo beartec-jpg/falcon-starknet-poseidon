@@ -417,6 +417,8 @@ type ByteBase=iL<256>;impl FirstWordDiv of gU<fu,ByteBase>{type DivT=eX<0,61444>
 /// Domain-separation tag: short string 'FALCON512-POSEIDON-H2P-v1'.
 pub const POSEIDON_H2P_TAG: felt252 = 'FALCON512-POSEIDON-H2P-v1';
 // ---- out-of-competition experiment: Poseidon hash-to-point emitting raw accepted words (ae)
+/// Returns at least 512 accepted coefficients (values < 5q, reduced mod q later); only
+/// the first 512 are used.
 pub fn hash_to_point_poseidon_raw(message_hash: felt252, salt_a: felt252, salt_b: felt252) -> Option<Array<ae>> {
     let sa: u256 = salt_a.into();
     let sb: u256 = salt_b.into();
@@ -458,6 +460,7 @@ fn pr_felt(felt: felt252, ref coeffs: Array<ae>) {
 }
 #[inline(always)]
 fn pr(candidate: Word16, ref coeffs: Array<ae>) {
-    if coeffs.len() == 512 { return; }
+    // No per-word length check: the final block may push up to 29 extra coefficients;
+    // `packing::et` consumes exactly the first 512 (126x4 + 8), matching the Python signer.
     match downcast::<Word16, ae>(candidate) { Some(a) => { coeffs.append(a); }, None => {}, }
 }

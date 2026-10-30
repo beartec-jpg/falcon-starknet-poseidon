@@ -17,15 +17,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pq_accounts"
-version = "0.1.0"
-dependencies = [
- "pqbench_ecdsa_stark",
- "pqbench_falcon_512",
- "pqbench_interface",
-]
-
-[[package]]
 name = "pqbench_ecdsa_stark"
 version = "0.1.0"
 dependencies = [
