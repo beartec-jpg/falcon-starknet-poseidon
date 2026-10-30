@@ -1,7 +1,13 @@
-# Attribution and third-party notices
+# Notices
 
-- **OpenZeppelin cairo-pq-verifiers** (base, commit bece5c07eeea5784e570c01108ec000d2d04ae40), MIT, Copyright (c) 2026 OpenZeppelin. This repository is a derivative; upstream README is kept as `README-upstream.md`. Not reviewed or endorsed by OpenZeppelin.
-- **Starknet Falcon Challenge record code** (postquantum.provably.fast, Falcon-512 record job `fj_c3459a8b…`, 24,097,870 gas), applied as a patch on the base. Per the challenge brief, accepted patches are MIT. Credit to rukafe0x (current record holder) and the record's other contributors as listed on postquantum.provably.fast.
-- **tprest/falcon.py** (Thomas Prest), MIT, Copyright (c) 2018 Thomas Prest. Fetched at a pinned commit by `reproduce.sh`, not vendored. Used for keygen/signing/verification.
-- **PQClean falcon-512/clean**, MIT (Falcon Project, Copyright (c) 2017-2019), and PQClean `common/fips202.c` (public domain, after Ronny Van Keer / SUPERCOP). Fetched at a pinned commit by `tools/pqverify/build.sh`, not vendored.
-- New work (Poseidon hash-to-point on the record core, dual-mode entry, dualsign CLI, vectors, scripts): Copyright (c) 2026 BEARTEC / Falcon PL (falcon-fpl.com), MIT.
+OpenZeppelin cairo-pq-verifiers is the base of this repo, at commit bece5c07eeea5784e570c01108ec000d2d04ae40. MIT licence, Copyright (c) 2026 OpenZeppelin. The original README is kept as README-upstream.md. OpenZeppelin has not reviewed or endorsed this work.
+
+The Starknet Falcon Challenge record code from postquantum.provably.fast is applied as a patch. The record is 24,097,870 gas. Accepted patches are MIT under the challenge brief. Credit to rukafe0x as record holder and to the other contributors listed on that site.
+
+falcon.py by Thomas Prest is MIT, Copyright (c) 2018 Thomas Prest. reproduce.sh fetches it at a pinned commit.
+
+PQClean falcon-512 clean is MIT, Copyright (c) 2017-2019 Falcon Project. Its fips202.c is public domain. tools/pqverify/build.sh fetches it at a pinned commit.
+
+ZKNox ETHFALCON was the model for swapping the hash for a cheaper one.
+
+New work here is Copyright (c) 2026 BEARTEC / Falcon PL, MIT.

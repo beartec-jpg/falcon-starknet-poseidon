@@ -1,56 +1,53 @@
 # falcon-starknet-poseidon
 
-Falcon-512 verification on Starknet with a **Poseidon hash-to-point** (~5.01M L2 gas), and **dual signing**: one standard Falcon-512 key signs each message both with standard SHAKE256 (verifiable by PQClean / falcon.py) and with Poseidon (cheap on Starknet).
+Falcon-512 signature verification on Starknet using a Poseidon hash-to-point. It costs about 5.0M L2 gas.
 
-*BEARTEC / Falcon PL — falcon-fpl.com. Research prototype.*
+By BEARTEC / Falcon PL (falcon-fpl.com). This is a prototype and it is not audited.
 
-## ⚠️ Read first: caveats
-- **Not audited. Not for production.** Neither this code, the base, nor the challenge record it builds on has been audited.
-- **Non-standard.** Poseidon hash-to-point is **not FIPS 206 / Falcon round 3**. Poseidon-mode signatures do not verify with standard Falcon libraries. Only the SHAKE mode is standard.
-- **Extra assumption.** Poseidon mode's security relies on Poseidon behaving as a random oracle (in addition to Falcon's own assumptions). A key used in both modes is only as strong as the weaker hash *for verifiers that accept Poseidon mode*.
-- **Fix the mode per contract.** Never let the caller pick the mode for a contract that expects one.
-- **Never reuse salts**, across modes or signatures.
-- **Outside the Starknet Falcon Challenge rules** (which require SHAKE256). This is not a record claim and was not submitted.
+## What this is
 
-## Results (measured, snforge 0.59.0 / Scarb 2.18.0; L2 gas incl. ~27k fixture construction)
-| | mean L2 gas | sigs |
-|---|---|---|
-| Challenge record (SHAKE256) | 24,097,870 | record's bench |
-| Dual entry, mode 0 (SHAKE256, record code) | 23,585,028 (23.18M–24.78M) | 8 |
-| Dual entry, mode 1 (Poseidon, tagged v1) | **5,013,399** (5.012M–5.014M) | 8 |
+This builds on OpenZeppelin's cairo-pq-verifiers. That repo already has a Falcon-512 variant with a Poseidon hash-to-point at about 12.0M gas. It also uses the optimised code from the Starknet Falcon Challenge record, held by rukafe0x.
 
-Poseidon mode: **−79.2%** vs the record (note the SHAKE rows use different signatures, so compare like-for-like with care). Poseidon hash-to-point alone ≈1.23M; the shared core (unpack, NTT, hint, norm) ≈3.76M by subtraction, which implies SHAKE256 is ≈20.3M (~84%) of the record. See `TUNING.md` for what was tried. The OpenZeppelin repo's own (untagged) Poseidon verifier measured 10.10–10.20M on comparable signatures; the saving over it comes from the record's optimised NTT/hint core.
+Our Poseidon variant measured a mean of 5,013,399 gas. That is about 2.4x cheaper than the OpenZeppelin Poseidon variant. Most of the saving comes from the record's faster core. For context the SHAKE256 challenge record is about 24.1M.
 
-Run `./reproduce.sh` to regenerate everything (installs pinned toolchain, builds PQClean verifier, checks all vectors, runs all tests, prints the gas table).
+## Dual mode
 
-## Construction (Poseidon hash-to-point v1)
+One standard Falcon-512 key can sign a message two ways. Mode 0 uses standard SHAKE256 and checks against PQClean and falcon.py. Mode 1 uses Poseidon and is cheap on Starknet. The verifier accepts either.
+
+Mode 0 measured about 23.6M gas and mode 1 about 5.01M gas, over 8 signatures each with snforge 0.59.0 and Scarb 2.18.0.
+
+## Caveats
+
+Poseidon mode is not standard Falcon. Its signatures do not verify with normal Falcon libraries. It also relies on Poseidon acting as a random oracle.
+
+It is not eligible for the Falcon Challenge, since the rules require SHAKE256. We did not submit it. This is the same trade-off ZKNox made with ETHFALCON on the EVM.
+
+Each contract should fix its mode and not let the caller choose. Never reuse a salt.
+
+No secret keys are in this repo.
+
+## Reproduce
+
+This installs the pinned toolchain, builds the PQClean verifier, checks the vectors, runs the tests and prints the gas table.
+
 ```
-t = hades(salt_a, salt_b, TAG)          # TAG = short string 'FALCON512-POSEIDON-H2P-v1'
-s = hades(t0 + message_hash, t1, t2)
-repeat: for felt in (s0, s1): 15 low 16-bit words w; accept w < 61445 (=5q), coeff = w mod q
-        s = hades(s)  until >= 512 accepted; the first 512 are the point
+./reproduce.sh
 ```
-- salts are 2 × 20 bytes (< 2^160 each, enforced), i.e. the standard 40-byte Falcon salt.
-- 61445 = 5q, so accepted words are exactly uniform mod q = 12289; the low 240 bits of a uniform field element are within ~2^-55 statistical distance of uniform (p mod 2^240 = 17·2^192+1).
-- Cairo: `crates/falcon_512/src/hashing/hash_to_point.cairo` (`hash_to_point_poseidon_raw`), Python: `tools/dualsign/dualsign.py` (`h2p_poseidon_v1`).
-- Verifiers: `Falcon512ShakeVerifier` (record), `Falcon512PoseidonRecVerifier`, and `falcon512_dual_verify(mode, msg, pk, sig)` (0 = SHAKE, 1 = Poseidon, other = reject) in `crates/falcon_512/src/lib.cairo`.
 
-## Dual signing
-`tools/dualsign/dualsign.py keygen DIR | sign DIR MSG_FELT OUT | verify DIR OUT [--pqclean BIN] | cairo DIR OUT NAME FILE`
-- One tprest/falcon.py key pair; public key emitted as 897-byte standard encoding (`pk.bin`) and 29-felt Cairo encoding (`pk.json`).
-- `sign` draws two independent 40-byte salts and writes a standard detached SHAKE signature (`0x39 || salt || compressed s1`) plus Cairo felts for both modes. The secret key is stored mode 0600 and never printed; **no secret keys are in this repo**.
-- Security: with independent salts the two signatures are Gaussian preimages of independent random-oracle targets, equivalent to signing two different messages, which Falcon's GPV-style security covers.
+## How it works
+
+The 40 byte Falcon salt is split into two 20 byte felts. These are hashed with a version tag, then with the message hash. Each Poseidon output felt gives 15 words of 16 bits. A word is kept if it is below 5q, and the coefficient is that word mod q. This repeats until there are 512 coefficients.
+
+The Cairo code is in crates/falcon_512. The signing tool is tools/dualsign/dualsign.py. TUNING.md lists what we tried to make it faster.
 
 ## Tests
-- `vectors/v0..v7` (2 keys × 4 messages, public only): PQClean C verifier, falcon.py and the Python Cairo-equation check accept all; tampered PQClean signature rejected.
-- `crates/falcon_512/tests/bench_dual.cairo`: valid × 8 per mode; mode swaps both ways, wrong key per mode, tampered message, invalid mode → rejected; an **untagged** Poseidon signature (OpenZeppelin's original Poseidon fixture) is rejected by the tagged verifier.
-- Full upstream test suite still passes (the upstream `pq-accounts/` demo — devnet/Sepolia tooling and a public insecure demo key — is omitted from this repo).
 
-## Prior art
-ZKNox **ETHFALCON** replaces SHAKE with a Keccak-based PRNG for EVM gas. This is the Starknet analogue with Poseidon, plus dual signing so one standard key remains interoperable.
+The vectors folder has 8 public test vectors. PQClean, falcon.py and a Python check all accept them. The Cairo tests check that wrong keys, swapped modes, changed messages and bad modes are rejected. An untagged OpenZeppelin Poseidon signature is also rejected.
 
-## Use cases
-Post-quantum Starknet account-abstraction wallets (Falcon in `__validate__` at ~5.0M gas; not yet measured as a full account transaction); Falcon PL committee signatures relayed to Starknet (standard SHAKE signature for everyone else, Poseidon signature for cheap on-chain checks).
+## Credits
+
+Thanks to OpenZeppelin for cairo-pq-verifiers, rukafe0x and the other Falcon Challenge record holders, ZKNox for ETHFALCON, Thomas Prest for falcon.py, and PQClean.
 
 ## Licence
-MIT (see `LICENSE`); attribution in `NOTICE.md`.
+
+MIT. See LICENSE and NOTICE.md.
