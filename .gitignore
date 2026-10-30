@@ -4,3 +4,4 @@ target/
 snforge_all.log
 tools/pqverify/pqverify
 __pycache__/
+.snfoundry_cache/
